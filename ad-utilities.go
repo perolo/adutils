@@ -16,6 +16,7 @@ type ADUser struct {
 	Name  string
 	Mail  string
 	Err   string
+	DN string
 }
 
 func InitAD(user string, pass string) {
@@ -114,6 +115,7 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 		var erru ADUser
 		erru.Err = "User does not exist or too many entries returned"
 		erru.Name = group
+		erru.DN = filter
 		eUsers = append(eUsers, erru)
 		//		log.Fatal("User does not exist or too many entries returned")
 	} else {
@@ -135,6 +137,8 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 								var erru ADUser
 								erru.Err = err.Error()
 								erru.Name = matches2[1]
+								erru.DN = erru.DN
+								//erru.DN = entry.DN
 								if us != nil {
 									erru.Uname = us[0].Uname
 								}
@@ -148,6 +152,7 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 									newUser.Uname = user.Uname
 									newUser.Err = user.Err
 									newUser.Mail = user.Mail
+									newUser.DN = user.DN
 									users = append(users, newUser)
 								}
 							}
@@ -225,6 +230,7 @@ func GetUserDN(name string) ([]ADUser, error) {
 			if strings.Contains(ee.DN, names[1]) {
 				var newUser ADUser
 				newUser.Name = name
+				newUser.DN = ee.DN
 				newUser.Uname = ee.GetAttributeValue("sAMAccountName")
 				newUser.Mail = ee.GetAttributeValue("mail")
 				newUser.Err = fmt.Sprintf("Barely found in AD, could be faulty: %s \n", name)
@@ -242,6 +248,10 @@ func GetUserDN(name string) ([]ADUser, error) {
 		if strings.Contains(e.DN, "OU=User") {
 			var newUsr ADUser
 			newUsr.Uname = e.GetAttributeValue("sAMAccountName")
+			newUsr.DN = e.DN
+			if len(result.Entries)>1 {
+				newUsr.Err = "Multiple users found - prblem in AD lookup"
+			}
 			uname = append(uname, newUsr)
 		} else {
 			//			fmt.Printf("   Skipping: %s \n", e.GetAttributeValue("sAMAccountName"))
