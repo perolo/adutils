@@ -14,9 +14,14 @@ var l *ldap.Conn
 type ADUser struct {
 	Uname string
 	Name  string
+	Err string
 	Mail  string
-	Err   string
 	DN string
+}
+type ADHierarchy struct {
+	Name  string  `json:"name"`
+	Parent string  `json:"parent"`
+	Tooltip string  `json:"tooltip"`
 }
 
 func InitAD(user string, pass string) {
@@ -41,7 +46,7 @@ func InitAD(user string, pass string) {
 	}
 
 }
-
+/*
 func contains(s []ADUser, e ADUser) bool {
 	for _, a := range s {
 		if a.Uname == e.Uname {
@@ -50,7 +55,7 @@ func contains(s []ADUser, e ADUser) bool {
 	}
 	return false
 }
-
+*/
 func Difference(a []ADUser, b map[string]ADUser) []ADUser {
 	mb := make(map[string]struct{}, len(b))
 	for _, x := range b {
@@ -78,22 +83,80 @@ func Difference2(a map[string]ADUser, b []ADUser) []ADUser {
 	return diff
 }
 
-func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []ADUser) {
+func GetUnamesInGroup(group string) (users []ADUser, err error) {
+
+	// Search for the given group
+	//group = "#AAAB - GTT - RDO Stockholm Embedded Employees"
+	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(group))
+	sr, err := l.Search(&ldap.SearchRequest{
+		BaseDN: "dc=ad,dc=global",
+		Scope:      2, // subtree
+		Filter:     filter,
+		Attributes: []string{"member", "cn", "dn"},
+		//Attributes: []string{"member", "cn", "dn", "samaccountname"},
+	})
+
+	//	sr, err := l.Search(searchRequest)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(sr.Entries) != 1 {
+		fmt.Printf("User does not exist or too many entries returned :  \n")
+		var erru ADUser
+		erru.Name = group
+		erru.DN = filter
+
+		//		log.Fatal("User does not exist or too many entries returned")
+	} else {
+		dn:= sr.Entries[0].DN
+//		dn := "CN=//#AAAB - GTT - RDO Stockholm Embedded Employees,OU=_Divisional,OU=DistributionGroups,OU=AAAB,OU=SSC,DC=ad,DC=global"
+
+//		filter2 := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(memberOf=%s))", dn)
+		filter2 := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(memberOf=%s))", ldap.EscapeFilter(dn))
+		//base := fmt.Sprintf("dc=ad,dc=global,cn=%s", g)
+		result, err := l.Search(&ldap.SearchRequest{
+			BaseDN:     "dc=ad,dc=global",
+			Scope:      ldap.ScopeWholeSubtree, // subtree
+			//DerefAliases: ldap.NeverDerefAliases,
+			Filter:     filter2,
+			Attributes: []string{"sAMAccountName"},
+		})
+		if err != nil {
+			return users, fmt.Errorf("LDAP search failed for user: %s",dn )
+
+		}
+		if len(result.Entries) == 0 {
+
+		} else {
+			for _, e := range result.Entries {
+					var newUsr ADUser
+					newUsr.Uname = e.GetAttributeValue("sAMAccountName")
+					newUsr.DN = e.DN
+				users = append(users, newUsr)
+			}
+
+		}
+	}
+	return users, err
+}
+/*
+func GetUnamesInGroupOld(group string) (users []ADUser, groups []string, eUsers []ADUser) {
 
 	// Search for the given group
 	//	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s))", group)
 	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", group)
 	//(!(userAccountControl:1.2.840.113556.1.4.803:=2))
-	/*	searchRequest := ldap.NewSearchRequest(
-				"dc=ad,dc=global",
-				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-				filter,
+	//	searchRequest := ldap.NewSearchRequest(
+	//			"dc=ad,dc=global",
+	//			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+	//			filter,
 		//		[]string{"member", "cn", "dn", "sAMAccountName", "name", "distinguishedName"},
 		//		[]string{"member", "cn", "dn", "sAMAccountName"},
-				[]string{"member", "cn", "dn", "samaccountname"},
+	//			[]string{"member", "cn", "dn", "samaccountname"},
 
-				nil,
-			)*/
+	//			nil,
+	//		)
 	//OU=_InactiveUsersInternal
 
 	sr, err := l.Search(&ldap.SearchRequest{
@@ -112,11 +175,7 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 
 	if len(sr.Entries) != 1 {
 		fmt.Printf("User does not exist or too many entries returned :  \n")
-		var erru ADUser
-		erru.Err = "User does not exist or too many entries returned"
-		erru.Name = group
-		erru.DN = filter
-		eUsers = append(eUsers, erru)
+		log.Fatal(err)
 		//		log.Fatal("User does not exist or too many entries returned")
 	} else {
 		for _, entry := range sr.Entries[0].Attributes {
@@ -127,15 +186,15 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 					for _, aMatch := range matches {
 						if aMatch == "OU=Users" {
 
-							vall2 := strings.Replace(vall, "\\,", "", -1)
+							vall2 := strings.Replace(vall, "\\,", ",", -1)
 							re2 := regexp.MustCompile("CN=([^,]+)")
 							//re2 := regexp.MustCompile("CN=([^,]+),([^,]+)")
 							matches2 := re2.FindStringSubmatch(vall2)
 							//							fmt.Printf("\"%s\" -> \"%s\"\n", group, matches2[1])
-							us, err := GetUserDN(matches2[1])
+							//							us, err := GetUserDN(matches2[1])
+							us, err := GetUserDN("CN=\"Malm, Åsa\",OU=SESTV,OU=UsersInternal,OU=Users,OU=AAAB,OU=SSC,DC=ad,DC=global")
 							if err != nil {
 								var erru ADUser
-								erru.Err = err.Error()
 								erru.Name = matches2[1]
 								erru.DN = erru.DN
 								//erru.DN = entry.DN
@@ -150,7 +209,6 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 									var newUser ADUser
 									newUser.Name = matches2[1]
 									newUser.Uname = user.Uname
-									newUser.Err = user.Err
 									newUser.Mail = user.Mail
 									newUser.DN = user.DN
 									users = append(users, newUser)
@@ -165,7 +223,7 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 							str2 := strings.Replace(matches2[1], "\\", "", -1)
 							fmt.Printf("\"%s\" -> \"%s\"\n", group, str2)
 							groups = append(groups, str2)
-							nusers, ngroups, nerrUsers := GetUnamesInGroup(str2)
+							nusers, ngroups, nerrUsers := GetUnamesInGroupOld(str2)
 							for _, user := range nusers {
 								if !contains(users, user) {
 									users = append(users, user)
@@ -182,10 +240,61 @@ func GetUnamesInGroup(group string) (users []ADUser, groups []string, eUsers []A
 	}
 	return users, groups, eUsers
 }
+*/
+func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, hierarchies [] ADHierarchy) {
+
+	// Search for the given group
+	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", group)
+
+	sr, err := l.Search(&ldap.SearchRequest{
+		BaseDN: "dc=ad,dc=global",
+		Scope:      2, // subtree
+		Filter:     filter,
+		Attributes: []string{"member", "cn", "dn"},
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(sr.Entries) != 1 {
+		fmt.Printf("User does not exist or too many entries returned :  \n")
+		log.Fatal(err)
+		//		log.Fatal("User does not exist or too many entries returned")
+	} else {
+		for _, entry := range sr.Entries[0].Attributes {
+			if entry.Name == "member" {
+				for _, vall := range entry.Values {
+					re := regexp.MustCompile("OU=([^,]+)")
+					matches := re.FindAllString(vall, -1)
+					for _, aMatch := range matches {
+						if aMatch == "OU=DistributionGroups" || aMatch == "OU=_Security Groups" || aMatch == "OU=SecurityGroups" {
+							re2 := regexp.MustCompile("CN=([^,]+)")
+							matches2 := re2.FindStringSubmatch(vall)
+							str2 := strings.Replace(matches2[1], "\\", "", -1)
+							var newhierarchy ADHierarchy
+							newhierarchy.Name = str2
+							newhierarchy.Parent = group
+							hierarchies = append(hierarchies, newhierarchy)
+							fmt.Printf("\"%s\" -> \"%s\"\n", group, str2)
+							groups = append(groups, str2)
+							ngroups, nhierachy := ExpandHierarchy(str2, hierarchy )
+							groups = append(groups, ngroups...)
+							hierarchies = append(hierarchies, nhierachy...)
+						}
+					}
+				}
+			}
+		}
+	}
+	return groups, hierarchies
+}
+
 
 /*
  * Returns the DN of the object representing the authenticated user.
  */
+/*
 func GetUserDN(name string) ([]ADUser, error) {
 	var uname []ADUser
 	// Find the distinguished name for the user if userPrincipalName used for login
@@ -193,16 +302,23 @@ func GetUserDN(name string) ([]ADUser, error) {
 	//	filter := fmt.Sprintf("(displayName=%s)", ldap.EscapeFilter(name))
 	//	filter := fmt.Sprintf("(anr=%s) and (OU=UsersInternal)", ldap.EscapeFilter(name))
 	//filter := fmt.Sprintf("(anr=%s)", ldap.EscapeFilter(name))
-	filter := fmt.Sprintf("(&(anr=%s)(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(name))
+//P	filter := fmt.Sprintf("(&(anr=%s)(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(name))
 	//filter := fmt.Sprintf("(&(%s)(objectCategory=person)(objectClass=user))", ldap.EscapeFilter(name))
 	//	filter := fmt.Sprintf("(&(anr=%s)(objectCategory=person)(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:=CN=%s,DC=ad,DC=global)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(name), gr)
 	//ReplaceAccents(name)
 	//filter := fmt.Sprintf("(&(anr=%s)(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(name))
-
+//Pfilter:=fmt.Sprintf("(%s)",ldap.EscapeFilter(name))
+dn:= "CN=#AAAB - GTT - RDO Stockholm Software1,OU=_Divisional,OU=DistributionGroups,OU=AAAB,OU=SSC,DC=ad,DC=global"
+//dn:= "CN=/#AAAB - GTT - RDO Stockholm Software1,OU=_Divisional,OU=DistributionGroups,OU=AAAB,OU=SSC,DC=ad,DC=global"
+//dn:= "CN=//#AAAB - GTT - RDO Stockholm Software1,OU=_Divisional,OU=DistributionGroups,OU=AAAB,OU=SSC,DC=ad,DC=global"
+//dn:= "CN=G-AAAB-GTT-Group IP Management-sec,OU=_Divisional,OU=Security,OU=SecurityGroups,OU=AAAB,OU=SSC,DC=ad,DC=global"
+//	filter:=fmt.Sprintf("(%s)",name)
+filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(memberOf=%s))", ldap.EscapeFilter(dn))
 	//base := fmt.Sprintf("dc=ad,dc=global,cn=%s", g)
 	result, err := l.Search(&ldap.SearchRequest{
 		BaseDN:     "dc=ad,dc=global",
-		Scope:      2, // subtree
+		Scope:      ldap.ScopeWholeSubtree, // subtree
+		DerefAliases: ldap.NeverDerefAliases,
 		Filter:     filter,
 		Attributes: []string{"sAMAccountName"},
 	})
@@ -213,9 +329,6 @@ func GetUserDN(name string) ([]ADUser, error) {
 	if len(result.Entries) == 0 {
 		sname := ""
 		names := strings.Split(name, " ")
-		/*		for _, n := range names {
-				sname = n
-			}*/
 		sname = names[0]
 
 		filter2 := fmt.Sprintf("(&(anr=%s)(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(sname))
@@ -260,6 +373,7 @@ func GetUserDN(name string) ([]ADUser, error) {
 
 	return uname, nil
 }
+*/
 
 func CloseAD() {
 	l.Close()
