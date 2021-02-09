@@ -241,7 +241,7 @@ func GetUnamesInGroupOld(group string) (users []ADUser, groups []string, eUsers 
 	return users, groups, eUsers
 }
 */
-func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, hierarchies [] ADHierarchy) {
+func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, hierarchies [] ADHierarchy, err error) {
 
 	// Search for the given group
 	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", group)
@@ -254,12 +254,15 @@ func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, h
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, err
+//		log.Fatal(err)
 	}
 
 	if len(sr.Entries) != 1 {
-		fmt.Printf("User does not exist or too many entries returned :  \n")
-		log.Fatal(err)
+		//fmt.Printf("User does not exist or too many entries returned :  \n")
+		err2 := fmt.Errorf("User does not exist or too many entries returned : %v", len(sr.Entries))
+		return nil, nil, err2
+//		log.Fatal(err)
 		//		log.Fatal("User does not exist or too many entries returned")
 	} else {
 		for _, entry := range sr.Entries[0].Attributes {
@@ -278,7 +281,10 @@ func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, h
 							hierarchies = append(hierarchies, newhierarchy)
 							fmt.Printf("\"%s\" -> \"%s\"\n", group, str2)
 							groups = append(groups, str2)
-							ngroups, nhierachy := ExpandHierarchy(str2, hierarchy )
+							ngroups, nhierachy, err3 := ExpandHierarchy(str2, hierarchy )
+							if err != nil {
+								return nil, nil, err3
+							}
 							groups = append(groups, ngroups...)
 							hierarchies = append(hierarchies, nhierachy...)
 						}
@@ -287,7 +293,7 @@ func ExpandHierarchy(group string, hierarchy [] ADHierarchy) (groups []string, h
 			}
 		}
 	}
-	return groups, hierarchies
+	return groups, hierarchies, err
 }
 
 
