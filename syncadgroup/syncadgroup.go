@@ -72,7 +72,7 @@ func initReport(cfg Config) {
 
 func endReport(cfg Config) error {
 	if cfg.Report {
-		file := fmt.Sprintf(cfg.File, "-Confluence")
+		file := fmt.Sprintf(cfg.File, "-ADCompare")
 		excelutils.SetColWidth("A", "A", 60)
 		excelutils.AutoFilterEnd()
 		excelutils.SaveAs(file)
@@ -139,9 +139,11 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 	fmt.Printf("\n")
 	var adUnames1 []adutils.ADUser
 	var adUnames2 []adutils.ADUser
+	toolGroupMemberNames = make(map[string]adutils.ADUser)
+
 	if cfg.AdGroup != "" {
-		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup)
-		fmt.Printf("adUnames1(%v)\n", len(adUnames1))
+		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup, true)
+		fmt.Printf("AD Names 1 (%v)\n", len(adUnames1))
 	}
 	if cfg.Report {
 		if !cfg.Limited {
@@ -152,8 +154,8 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 		}
 	}
 	if cfg.AdGroup != "" {
-		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup)
-		fmt.Printf("adUnames1(%v)\n", len(adUnames1))
+		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup, true)
+		fmt.Printf("AD Names 2 (%v)\n", len(adUnames2))
 	}
 	if cfg.Report {
 		if !cfg.Limited {
@@ -167,9 +169,9 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 	if cfg.Localgroup != "" && cfg.AdGroup != "" {
 		notInTool := adutils.Difference(adUnames1, toolGroupMemberNames)
 		if len(notInTool) == 0 {
-			fmt.Printf("Not In Tool(%v)\n", len(notInTool))
+			fmt.Printf("Not In AD Group 1 (%v)\n", len(notInTool))
 		} else {
-			fmt.Printf("Not In Tool(%v) ", len(notInTool))
+			fmt.Printf("Not In AD Group 1 (%v) ", len(notInTool))
 			for _, nit := range notInTool {
 				fmt.Printf("%s, ", nit.Uname)
 			}
@@ -177,15 +179,15 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 		}
 		if cfg.Report {
 			for _, nji := range notInTool {
-				var row = []string{"AD group users not found in Tool user group", cfg.AdGroup, cfg.Localgroup, nji.Name, nji.Uname, nji.Mail, nji.Err, nji.DN}
+				var row = []string{"AD group 1 users not found Not In AD Group 2 group", cfg.AdGroup, cfg.Localgroup, nji.Name, nji.Uname, nji.Mail, nji.Err, nji.DN}
 				excelutils.WriteColumnsln(row)
 			}
 		}
 		notInAD := adutils.Difference2(toolGroupMemberNames, adUnames1)
 		if len(notInAD) == 0 {
-			fmt.Printf("notInAD(%v)\n", len(notInAD))
+			fmt.Printf( "Not In AD Group 2(%v)\n", len(notInAD))
 		} else {
-			fmt.Printf("notInAD(%v) ", len(notInAD))
+			fmt.Printf("Not In AD Group 2 (%v) ", len(notInAD))
 			for _, nit := range notInAD {
 				fmt.Printf("%s, ", nit.Uname)
 			}
@@ -212,7 +214,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 								nad.Mail = edn[0].Mail
 								nad.Err = edn[0].Err
 								for _, ldn := range edn {
-									var row2 = []string{"Tool user group member not found in AD group (multiple?)", cfg.AdGroup, cfg.Localgroup, nad.Name, nad.Uname, ldn.Mail, ldn.Err, ldn.DN}
+									var row2 = []string{"Not In AD Group 1 user not found in AD group 2)", cfg.AdGroup, cfg.Localgroup, nad.Name, nad.Uname, ldn.Mail, ldn.Err, ldn.DN}
 									excelutils.WriteColumnsln(row2)
 								}
 							} else {
@@ -223,36 +225,9 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 					}
 
 				}
-				var row = []string{"Tool user group member not found in AD group", cfg.AdGroup, cfg.Localgroup, nad.Name, nad.Uname, nad.Mail, nad.Err, nad.DN}
+				var row = []string{"AD group 2 users not found Not In AD Group 1 group", cfg.AdGroup, cfg.Localgroup, nad.Name, nad.Uname, nad.Mail, nad.Err, nad.DN}
 				excelutils.WriteColumnsln(row)
 			}
 		}
 	}
-}
-func getUnamesInToolGroup(theClient *client.ConfluenceClient, localgroup string) map[string]adutils.ADUser {
-	groupMemberNames := make(map[string]adutils.ADUser)
-	cont := true
-	start := 0
-	max := 50
-	for cont {
-		groupMembers, err := theClient.GetGroupMembers(localgroup, &client.GetGroupMembersOptions{StartAt: start, MaxResults: max, ShowBasicDetails: true})
-		if err != nil {
-			panic(err)
-		}
-		for _, member := range groupMembers.Users {
-			if _, ok := groupMemberNames[member.Name]; !ok {
-				var newUser adutils.ADUser
-				newUser.Uname = member.Name
-				newUser.Name = member.FullName
-				newUser.Mail = member.Email
-				groupMemberNames[member.Name] = newUser
-			}
-		}
-		if len(groupMembers.Users) != max {
-			cont = false
-		} else {
-			start = start + max
-		}
-	}
-	return groupMemberNames
 }

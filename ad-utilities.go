@@ -51,11 +51,11 @@ func InitAD(user string, pass string) {
 func Difference(a []ADUser, b map[string]ADUser) []ADUser {
 	mb := make(map[string]struct{}, len(b))
 	for _, x := range b {
-		mb[x.Uname] = struct{}{}
+		mb[strings.ToLower(x.Uname)] = struct{}{}
 	}
 	var diff []ADUser
 	for _, x := range a {
-		if _, found := mb[x.Uname]; !found {
+		if _, found := mb[strings.ToLower(x.Uname)]; !found {
 			diff = append(diff, x)
 		}
 	}
@@ -65,11 +65,11 @@ func Difference(a []ADUser, b map[string]ADUser) []ADUser {
 func Difference2(a map[string]ADUser, b []ADUser) []ADUser {
 	mb := make(map[string]struct{}, len(b))
 	for _, x := range b {
-		mb[x.Uname] = struct{}{}
+		mb[strings.ToLower(x.Uname)] = struct{}{}
 	}
 	var diff []ADUser
 	for _, x := range a {
-		if _, found := mb[x.Uname]; !found {
+		if _, found := mb[strings.ToLower(x.Uname)]; !found {
 			diff = append(diff, x)
 		}
 	}
@@ -112,23 +112,24 @@ func GetUnamesInGroup(group string) (users []ADUser, err error) {
 			Scope:  ldap.ScopeWholeSubtree, // subtree
 			//DerefAliases: ldap.NeverDerefAliases,
 			Filter:     filter2,
-			Attributes: []string{"sAMAccountName","mail"},
+			Attributes: []string{"sAMAccountName", "mail", "displayName"},
 		})
 		if err != nil {
 			return users, fmt.Errorf("LDAP search failed for user: %s", dn)
 
 		}
 		if len(result.Entries) == 0 {
-			fmt.Printf("filter2 = %s, count: %v \n", filter2,  len(result.Entries))
+			//fmt.Printf("filter2 = %s, count: %v \n", filter2,  len(result.Entries))
 		} else {
 			for _, e := range result.Entries {
 				var newUsr ADUser
 				newUsr.Uname = e.GetAttributeValue("sAMAccountName")
 				newUsr.Mail = e.GetAttributeValue("mail")
+				newUsr.Name = e.GetAttributeValue("displayName")
 				newUsr.DN = e.DN
 				users = append(users, newUsr)
 			}
-//			fmt.Printf("filter2 = %s, count: %v \n", filter2,  len(result.Entries))
+			//			fmt.Printf("filter2 = %s, count: %v \n", filter2,  len(result.Entries))
 		}
 	}
 	return users, err
@@ -175,10 +176,15 @@ func ExpandHierarchy(group string, hierarchy []ADHierarchy) (groups []string, hi
 							hierarchies = append(hierarchies, newhierarchy)
 							fmt.Printf("\"%s\" -> \"%s\"\n", group, str2)
 							groups = append(groups, str2)
-							ngroups, nhierachy, err3 := ExpandHierarchy(str2, hierarchy)
-							if err3 != nil {
-								return nil, nil, err3
-							}
+							ngroups, nhierachy, _ := ExpandHierarchy(str2, hierarchy)
+							/*							if err3 != nil {
+							//								if (err3.ResultCode == 210) {
+															if true {
+																return nil, nil, nil
+															} else {
+																return nil, nil, err3
+															}
+														}*/
 							groups = append(groups, ngroups...)
 							hierarchies = append(hierarchies, nhierachy...)
 						}
@@ -202,7 +208,7 @@ func GetActiveUserDN(name string) (ADUser, error) {
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
-		Attributes:   []string{"sAMAccountName", "mail"},
+		Attributes:   []string{"sAMAccountName", "mail", "displayName"},
 	})
 	if err != nil {
 		return theUser, fmt.Errorf("LDAP search failed for user: %v", err)
@@ -213,13 +219,14 @@ func GetActiveUserDN(name string) (ADUser, error) {
 		return theUser, fmt.Errorf("Not found in AD: %s \n", name)
 
 	} else if len(result.Entries) > 1 {
-		fmt.Printf("More tham one hit for %s : %v \n", name, len(result.Entries))
-		return theUser, fmt.Errorf("More tham one hit for: %s \n", name)
+		fmt.Printf("More than one hit for %s : %v \n", name, len(result.Entries))
+		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
 		if strings.Contains(e.DN, "OU=User") {
 			theUser.DN = e.DN
 			theUser.Mail = e.GetAttributeValue("mail")
+			theUser.Name = e.GetAttributeValue("displayName")
 		} else {
 			fmt.Printf("Not found in AD as User: %s \n", name)
 			return theUser, fmt.Errorf("Not found in AD: %s \n", name)
@@ -240,7 +247,7 @@ func GetAllUserDN(name string) (ADUser, error) {
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
-		Attributes:   []string{"sAMAccountName", "mail"},
+		Attributes:   []string{"sAMAccountName", "mail", "displayName"},
 	})
 	if err != nil {
 		return theUser, fmt.Errorf("LDAP search failed for user: %v", err)
@@ -251,13 +258,14 @@ func GetAllUserDN(name string) (ADUser, error) {
 		return theUser, fmt.Errorf("Not found in AD: %s \n", name)
 
 	} else if len(result.Entries) > 1 {
-		fmt.Printf("More tham one hit for %s : %v \n", name, len(result.Entries))
-		return theUser, fmt.Errorf("More tham one hit for: %s \n", name)
+		fmt.Printf("More than one hit for %s : %v \n", name, len(result.Entries))
+		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
 		if strings.Contains(e.DN, "OU=User") {
 			theUser.DN = e.DN
 			theUser.Mail = e.GetAttributeValue("mail")
+			theUser.Name = e.GetAttributeValue("displayName")
 		} else {
 			fmt.Printf("Not found in AD as User: %s \n", name)
 			return theUser, fmt.Errorf("Not found in AD: %s \n", name)
@@ -272,14 +280,14 @@ func GetAllUserDN(name string) (ADUser, error) {
 
 func GetAllEmailDN(email string) ([]ADUser, error) {
 	var theUser []ADUser
-//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=%s))", ldap.EscapeFilter(email))
+	//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=%s))", ldap.EscapeFilter(email))
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(mail=%s))", ldap.EscapeFilter(email))
 	result, err := l.Search(&ldap.SearchRequest{
 		BaseDN:       "dc=ad,dc=global",
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
-		Attributes:   []string{"sAMAccountName", "mail"},
+		Attributes:   []string{"sAMAccountName", "mail", "displayName"},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("LDAP search failed for email: %v", err)
@@ -290,11 +298,14 @@ func GetAllEmailDN(email string) ([]ADUser, error) {
 		return theUser, fmt.Errorf("Email not found in AD: %s \n", email)
 
 	} else if len(result.Entries) >= 1 {
-		fmt.Printf("More tham one hit for %s : %v \n", email, len(result.Entries))
+		if len(result.Entries) == 1 {
+			fmt.Printf("More than one hit for %s : %v \n", email, len(result.Entries))
+		}
 		for _, entr := range result.Entries {
 			var aUser ADUser
 			aUser.DN = entr.DN
 			aUser.Mail = entr.GetAttributeValue("mail")
+			aUser.Name = entr.GetAttributeValue("displayName")
 			theUser = append(theUser, aUser)
 		}
 		return theUser, nil
