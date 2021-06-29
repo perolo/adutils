@@ -15,21 +15,21 @@ import (
 
 // or through Decode
 type Config struct {
-	ConfHost        string `properties:"confhost"`
-	User            string `properties:"user"`
-	Pass            string `properties:"password"`
-	Simple          bool   `properties:"simple"`
-	Report          bool   `properties:"report"`
-	Limited         bool   `properties:"limited"`
-	AdGroup         string `properties:"adgroup"`
-	Localgroup      string `properties:"localgroup"`
-	File            string `properties:"file"`
-	ConfUpload      bool   `properties:"confupload"`
-	ConfPage        string `properties:"confluencepage"`
-	ConfSpace       string `properties:"confluencespace"`
-	ConfAttName     string `properties:"conlfuenceattachment"`
-	Bindusername    string `properties:"bindusername"`
-	Bindpassword    string `properties:"bindpassword"`
+	ConfHost     string `properties:"confhost"`
+	User         string `properties:"user"`
+	Pass         string `properties:"password"`
+	Simple       bool   `properties:"simple"`
+	Report       bool   `properties:"report"`
+	Limited      bool   `properties:"limited"`
+	AdGroup      string `properties:"adgroup"`
+	Localgroup   string `properties:"localgroup"`
+	File         string `properties:"file"`
+	ConfUpload   bool   `properties:"confupload"`
+	ConfPage     string `properties:"confluencepage"`
+	ConfSpace    string `properties:"confluencespace"`
+	ConfAttName  string `properties:"conlfuenceattachment"`
+	Bindusername string `properties:"bindusername"`
+	Bindpassword string `properties:"bindpassword"`
 }
 
 func initReport(cfg Config) {
@@ -52,13 +52,12 @@ func initReport(cfg Config) {
 		excelutils.WiteCellln("")
 		excelutils.SetCellFontHeader2()
 		excelutils.WiteCellln("Group Mapping")
+		excelutils.WriteColumnsHeaderln([]string{"AD Group 1", "AD Group 2", "Ad Count 1", "Ad Count 2"})
 		if cfg.Simple {
-			excelutils.WriteColumnsHeaderln([]string{"AD Group 1", "AD Group 2"})
 			excelutils.WriteColumnsln([]string{cfg.AdGroup, cfg.Localgroup})
 		} else {
-			excelutils.WriteColumnsHeaderln([]string{"AD Group 1", "AD Group 2"})
 			for _, syn := range GroupSyncs {
-					excelutils.WriteColumnsln([]string{syn.AdGroup1, syn.AdGroup2})
+				excelutils.WriteColumnsln([]string{syn.AdGroup1, syn.AdGroup2})
 			}
 		}
 		excelutils.WiteCellln("")
@@ -107,13 +106,19 @@ func AdSyncAdGroup(propPtr string) {
 	toolClient := toollogin(cfg)
 	initReport(cfg)
 	adutils.InitAD(cfg.Bindusername, cfg.Bindpassword)
+	x := 15
 	if cfg.Simple {
 		SyncGroupInTool(cfg, toolClient)
 	} else {
 		for _, syn := range GroupSyncs {
-				cfg.AdGroup = syn.AdGroup1
-				cfg.Localgroup = syn.AdGroup2
-				SyncGroupInTool(cfg, toolClient)
+			syn.AdCount = 0
+			syn.GroupCount = 0
+			cfg.AdGroup = syn.AdGroup1
+			cfg.Localgroup = syn.AdGroup2
+			syn.AdCount, syn.GroupCount = SyncGroupInTool(cfg, toolClient)
+			excelutils.SetCell(fmt.Sprintf("%v", syn.AdCount), 5, x)
+			excelutils.SetCell(fmt.Sprintf("%v", syn.GroupCount), 6, x)
+			x = x + 1
 		}
 	}
 	err := endReport(cfg)
@@ -132,7 +137,7 @@ func toollogin(cfg Config) *client.ConfluenceClient {
 	return client.Client(&config)
 }
 
-func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
+func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) (adcount int, localcount int) {
 	var toolGroupMemberNames map[string]adutils.ADUser
 	fmt.Printf("\n")
 	fmt.Printf("SyncGroup AdGroup: %s LocalGroup: %s \n", cfg.AdGroup, cfg.Localgroup)
@@ -142,7 +147,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 	toolGroupMemberNames = make(map[string]adutils.ADUser)
 
 	if cfg.AdGroup != "" {
-		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup, true)
+		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup)
 		fmt.Printf("AD Names 1 (%v)\n", len(adUnames1))
 	}
 	if cfg.Report {
@@ -152,9 +157,10 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 				excelutils.WriteColumnsln(row)
 			}
 		}
+		adcount = len(adUnames1)
 	}
 	if cfg.AdGroup != "" {
-		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup, true)
+		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup)
 		fmt.Printf("AD Names 2 (%v)\n", len(adUnames2))
 	}
 	if cfg.Report {
@@ -165,6 +171,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 				toolGroupMemberNames[adu2.Uname] = adu2
 			}
 		}
+		localcount = len(adUnames2)
 	}
 	if cfg.Localgroup != "" && cfg.AdGroup != "" {
 		notInTool := adutils.Difference(adUnames1, toolGroupMemberNames)
@@ -185,7 +192,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 		}
 		notInAD := adutils.Difference2(toolGroupMemberNames, adUnames1)
 		if len(notInAD) == 0 {
-			fmt.Printf( "Not In AD Group 2(%v)\n", len(notInAD))
+			fmt.Printf("Not In AD Group 2(%v)\n", len(notInAD))
 		} else {
 			fmt.Printf("Not In AD Group 2 (%v) ", len(notInAD))
 			for _, nit := range notInAD {
@@ -230,4 +237,5 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) {
 			}
 		}
 	}
+	return adcount, localcount
 }
