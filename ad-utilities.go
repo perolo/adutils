@@ -77,12 +77,12 @@ func Difference2(a map[string]ADUser, b []ADUser) []ADUser {
 	return diff
 }
 
-func GetUnamesInGroup(group string) (users []ADUser, err error) {
+func GetUnamesInGroup(group string, basedn string) (users []ADUser, err error) {
 
 	// Search for the given group
 	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", ldap.EscapeFilter(group))
 	sr, err := l.Search(&ldap.SearchRequest{
-		BaseDN:     "dc=ad,dc=global",
+		BaseDN:     basedn,
 		Scope:      2, // subtree
 		Filter:     filter,
 		Attributes: []string{"member", "cn", "dn"},
@@ -109,7 +109,7 @@ func GetUnamesInGroup(group string) (users []ADUser, err error) {
 		filter2 := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(memberOf:1.2.840.113556.1.4.1941:=%s))", ldap.EscapeFilter(dn))
 
 		result, err := l.Search(&ldap.SearchRequest{
-			BaseDN: "dc=ad,dc=global",
+			BaseDN: basedn,
 			Scope:  ldap.ScopeWholeSubtree, // subtree
 			//DerefAliases: ldap.NeverDerefAliases,
 			Filter:     filter2,
@@ -137,14 +137,14 @@ func GetUnamesInGroup(group string) (users []ADUser, err error) {
 	return users, err
 }
 
-func ExpandHierarchy(group string, hierarchy []ADHierarchy) (groups []string, hierarchies []ADHierarchy, err error) {
+func ExpandHierarchy(group string, hierarchy []ADHierarchy, basedn string) (groups []string, hierarchies []ADHierarchy, err error) {
 
 	// Search for the given group
 	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))", group)
 	//	filter := fmt.Sprintf("(&(objectCategory=group)(cn=%s))", group)
 
 	sr, err := l.Search(&ldap.SearchRequest{
-		BaseDN:     "dc=ad,dc=global",
+		BaseDN:     basedn,
 		Scope:      2, // subtree
 		Filter:     filter,
 		Attributes: []string{"member", "cn", "dn"},
@@ -178,7 +178,7 @@ func ExpandHierarchy(group string, hierarchy []ADHierarchy) (groups []string, hi
 							hierarchies = append(hierarchies, newhierarchy)
 							fmt.Printf("\"%s\" -> \"%s\"\n", group, str2)
 							groups = append(groups, str2)
-							ngroups, nhierachy, _ := ExpandHierarchy(str2, hierarchy)
+							ngroups, nhierachy, _ := ExpandHierarchy(str2, hierarchy, basedn)
 							groups = append(groups, ngroups...)
 							hierarchies = append(hierarchies, nhierachy...)
 						}
@@ -194,11 +194,11 @@ func ExpandHierarchy(group string, hierarchy []ADHierarchy) (groups []string, hi
  * Returns the DN of the object representing the authenticated user.
  */
 
-func GetActiveUserDN(name string) (ADUser, error) {
+func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 	var theUser ADUser
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
 	result, err := l.Search(&ldap.SearchRequest{
-		BaseDN:       "dc=ad,dc=global",
+		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
@@ -234,11 +234,11 @@ func GetActiveUserDN(name string) (ADUser, error) {
 	return theUser, nil
 }
 
-func GetAllUserDN(name string) (ADUser, error) {
+func GetAllUserDN(name string, basedn string) (ADUser, error) {
 	var theUser ADUser
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(samaccountname=%s))", ldap.EscapeFilter(name))
 	result, err := l.Search(&ldap.SearchRequest{
-		BaseDN:       "dc=ad,dc=global",
+		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
@@ -274,12 +274,12 @@ func GetAllUserDN(name string) (ADUser, error) {
 	return theUser, nil
 }
 
-func GetActiveEmailDN(email string) ([]ADUser, error) {
+func GetActiveEmailDN(email string, basedn string) ([]ADUser, error) {
 	var theUser []ADUser
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=%s))", ldap.EscapeFilter(email))
 //	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(mail=%s))", ldap.EscapeFilter(email))
 	result, err := l.Search(&ldap.SearchRequest{
-		BaseDN:       "dc=ad,dc=global",
+		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
@@ -312,12 +312,12 @@ func GetActiveEmailDN(email string) ([]ADUser, error) {
 	return theUser, nil
 }
 
-func GetAllEmailDN(email string) ([]ADUser, error) {
+func GetAllEmailDN(email string, basedn string) ([]ADUser, error) {
 	var theUser []ADUser
 	//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=%s))", ldap.EscapeFilter(email))
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(mail=%s))", ldap.EscapeFilter(email))
 	result, err := l.Search(&ldap.SearchRequest{
-		BaseDN:       "dc=ad,dc=global",
+		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,

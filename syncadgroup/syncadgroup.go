@@ -13,7 +13,6 @@ import (
 	"time"
 )
 
-// or through Decode
 type Config struct {
 	ConfHost     string `properties:"confhost"`
 	User         string `properties:"user"`
@@ -30,6 +29,7 @@ type Config struct {
 	ConfAttName  string `properties:"conlfuenceattachment"`
 	Bindusername string `properties:"bindusername"`
 	Bindpassword string `properties:"bindpassword"`
+	BaseDN       string `properties:"basedn"`
 }
 
 func initReport(cfg Config) {
@@ -147,7 +147,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) (adcount int, 
 	toolGroupMemberNames = make(map[string]adutils.ADUser)
 
 	if cfg.AdGroup != "" {
-		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup)
+		adUnames1, _ = adutils.GetUnamesInGroup(cfg.AdGroup, cfg.BaseDN)
 		fmt.Printf("AD Names 1 (%v)\n", len(adUnames1))
 	}
 	if cfg.Report {
@@ -160,7 +160,7 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) (adcount int, 
 		adcount = len(adUnames1)
 	}
 	if cfg.AdGroup != "" {
-		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup)
+		adUnames2, _ = adutils.GetUnamesInGroup(cfg.Localgroup, cfg.BaseDN)
 		fmt.Printf("AD Names 2 (%v)\n", len(adUnames2))
 	}
 	if cfg.Report {
@@ -204,18 +204,18 @@ func SyncGroupInTool(cfg Config, client *client.ConfluenceClient) (adcount int, 
 			for _, nad := range notInAD {
 				if nad.DN == "" {
 
-					dn, err := adutils.GetActiveUserDN(nad.Uname)
+					dn, err := adutils.GetActiveUserDN(nad.Uname, cfg.BaseDN)
 					if err == nil {
 						nad.DN = dn.DN
 						nad.Mail = dn.Mail
 					} else {
-						udn, err := adutils.GetAllUserDN(nad.Uname)
+						udn, err := adutils.GetAllUserDN(nad.Uname, cfg.BaseDN)
 						if err == nil {
 							nad.DN = udn.DN
 							nad.Mail = udn.Mail
 							nad.Err = "Deactivated"
 						} else {
-							edn, err := adutils.GetAllEmailDN(nad.Mail)
+							edn, err := adutils.GetAllEmailDN(nad.Mail, cfg.BaseDN)
 							if err == nil {
 								nad.DN = edn[0].DN
 								nad.Mail = edn[0].Mail
