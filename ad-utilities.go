@@ -194,7 +194,9 @@ func ExpandHierarchy(group string, hierarchy []ADHierarchy, basedn string) (grou
 
 func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 	var theUser ADUser
-	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
+//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
+	filter := fmt.Sprintf("(&(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
+
 	result, err := l.Search(&ldap.SearchRequest{
 		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
@@ -215,7 +217,7 @@ func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
-		if strings.Contains(e.DN, "OU=User") {
+		if strings.Contains(e.DN, "OU=User") || strings.Contains(e.DN, "OU=Administrators"){
 			theUser.DN = e.DN
 			theUser.Mail = e.GetAttributeValue("mail")
 			theUser.Name = e.GetAttributeValue("displayName")
