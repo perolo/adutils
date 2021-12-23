@@ -15,8 +15,6 @@ import (
 
 type Config struct {
 	ConfHost     string `properties:"confhost"`
-	User         string `properties:"user"`
-	Pass         string `properties:"password"`
 	Simple       bool   `properties:"simple"`
 	Report       bool   `properties:"report"`
 	Limited      bool   `properties:"limited"`
@@ -80,6 +78,7 @@ func endReport(cfg Config) error {
 			var copt client.OperationOptions
 			config.Username = cfg.User
 			config.Password = cfg.Pass
+			config.UseToken = cfg.UseToken
 			config.URL = cfg.ConfHost
 			config.Debug = false
 			confluenceClient := client.Client(&config)
@@ -132,6 +131,7 @@ func toollogin(cfg Config) *client.ConfluenceClient {
 	var config = client.ConfluenceConfig{}
 	config.Username = cfg.User
 	config.Password = cfg.Pass
+	config.UseToken = cfg.UseToken
 	config.URL = cfg.ConfHost
 	config.Debug = false
 	return client.Client(&config)
