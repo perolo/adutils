@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/magiconair/properties"
 	"github.com/perolo/ad-utils"
-	"github.com/perolo/confluence-prop/client"
-	"github.com/perolo/confluence-scripts/utilities"
-	excelutils "github.com/perolo/excel-utils"
 	"log"
 	"path/filepath"
+	"sourcery.assaabloy.net/perolo/confluence-client/client"
+	"sourcery.assaabloy.net/perolo/confluence-scripts/utilities"
+	excelutils "sourcery.assaabloy.net/perolo/excel-utils"
 	"time"
 )
 

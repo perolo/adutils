@@ -3,22 +3,22 @@ package adutils
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/perolo/jira-client"
 	"gopkg.in/ldap.v2"
 	"log"
 	"regexp"
+	"sourcery.assaabloy.net/perolo/jira-client"
 	"strings"
 )
 
 var l *ldap.Conn
 
 type ADUser struct {
-	Uname    string
-	Name     string
-	Err      string
-	Rfa      jira.Issue
-	Mail     string
-	DN       string
+	Uname string
+	Name  string
+	Err   string
+	Rfa   jira.Issue
+	Mail  string
+	DN    string
 }
 type ADHierarchy struct {
 	Name    string `json:"name"`
@@ -194,7 +194,7 @@ func ExpandHierarchy(group string, hierarchy []ADHierarchy, basedn string) (grou
 
 func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 	var theUser ADUser
-//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
+	//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
 	filter := fmt.Sprintf("(&(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(samaccountname=%s))", ldap.EscapeFilter(name))
 
 	result, err := l.Search(&ldap.SearchRequest{
@@ -217,7 +217,7 @@ func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
-		if strings.Contains(e.DN, "OU=User") || strings.Contains(e.DN, "OU=Administrators"){
+		if strings.Contains(e.DN, "OU=User") || strings.Contains(e.DN, "OU=Administrators") {
 			theUser.DN = e.DN
 			theUser.Mail = e.GetAttributeValue("mail")
 			theUser.Name = e.GetAttributeValue("displayName")
@@ -241,7 +241,7 @@ func GetAllUserDN(name string, basedn string) (ADUser, error) {
 		Scope:        ldap.ScopeWholeSubtree, // subtree
 		DerefAliases: ldap.NeverDerefAliases,
 		Filter:       filter,
-		Attributes:   []string{"sAMAccountName", "mail", "displayName", "ObjectGUID" }, //"EmployeeNumber"
+		Attributes:   []string{"sAMAccountName", "mail", "displayName", "ObjectGUID"}, //"EmployeeNumber"
 	})
 	if err != nil {
 		return theUser, fmt.Errorf("LDAP search failed for user: %v", err)
@@ -275,7 +275,7 @@ func GetAllUserDN(name string, basedn string) (ADUser, error) {
 func GetActiveEmailDN(email string, basedn string) ([]ADUser, error) {
 	var theUser []ADUser
 	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=%s))", ldap.EscapeFilter(email))
-//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(mail=%s))", ldap.EscapeFilter(email))
+	//	filter := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(mail=%s))", ldap.EscapeFilter(email))
 	result, err := l.Search(&ldap.SearchRequest{
 		BaseDN:       basedn,
 		Scope:        ldap.ScopeWholeSubtree, // subtree
@@ -346,7 +346,6 @@ func GetAllEmailDN(email string, basedn string) ([]ADUser, error) {
 	return theUser, nil
 }
 
-
 func SearchUserDN(name string, basedn string) ([]ADUser, error) {
 	//var uname [] string
 	var theUsers []ADUser
@@ -360,9 +359,9 @@ func SearchUserDN(name string, basedn string) ([]ADUser, error) {
 
 	//base := fmt.Sprintf("dc=ad,dc=global,cn=%s", g)
 	result, err := l.Search(&ldap.SearchRequest{
-		BaseDN: "dc=ad,dc=global",
-		Scope:  2, // subtree
-		Filter: filter,
+		BaseDN:     "dc=ad,dc=global",
+		Scope:      2, // subtree
+		Filter:     filter,
 		Attributes: []string{"sAMAccountName", "mail", "displayName"},
 	})
 	if err != nil {
@@ -392,5 +391,3 @@ func SearchUserDN(name string, basedn string) ([]ADUser, error) {
 func CloseAD() {
 	l.Close()
 }
-
-
