@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"github.com/magiconair/properties"
 	"github.com/perolo/ad-utils"
+	"github.com/perolo/confluence-client/client"
+	"github.com/perolo/confluence-scripts/utilities"
+	excelutils "github.com/perolo/excel-utils"
 	"log"
 	"path/filepath"
-	"sourcery.assaabloy.net/perolo/confluence-client/client"
-	"sourcery.assaabloy.net/perolo/confluence-scripts/utilities"
-	excelutils "sourcery.assaabloy.net/perolo/excel-utils"
 	"time"
 )
 
 type Config struct {
 	ConfHost     string `properties:"confhost"`
+	ConfUser     string `properties:"confuser"`
+	ConfPass     string `properties:"confpass"`
+	ConfToken    string `properties:"conftoken"`
+	UseToken     bool   `properties:"usetoken"`
 	Simple       bool   `properties:"simple"`
 	Report       bool   `properties:"report"`
 	Limited      bool   `properties:"limited"`
@@ -38,7 +42,7 @@ func initReport(cfg Config) {
 		excelutils.WiteCellln("Please Do not edit this page!")
 		excelutils.WiteCellln("This page is created by the projectreport script: github.com\\perolo\\ad-utils\\SyncADGroup")
 		t := time.Now()
-		excelutils.WiteCellln("Created by: " + cfg.User + " : " + t.Format(time.RFC3339))
+		excelutils.WiteCellln("Created by: " + cfg.ConfUser + " : " + t.Format(time.RFC3339))
 		excelutils.WiteCellln("")
 		excelutils.WiteCellln("The Report Function shows:")
 		excelutils.WiteCellln("   Ad Names 1- Name and user found in AD Group 1")
@@ -76,8 +80,8 @@ func endReport(cfg Config) error {
 		if cfg.ConfUpload {
 			var config = client.ConfluenceConfig{}
 			var copt client.OperationOptions
-			config.Username = cfg.User
-			config.Password = cfg.Pass
+			config.Username = cfg.ConfUser
+			config.Password = cfg.ConfPass
 			config.UseToken = cfg.UseToken
 			config.URL = cfg.ConfHost
 			config.Debug = false
@@ -110,13 +114,13 @@ func AdSyncAdGroup(propPtr string) {
 		SyncGroupInTool(cfg, toolClient)
 	} else {
 		for _, syn := range GroupSyncs {
-			syn.AdCount = 0
-			syn.GroupCount = 0
+			AdCount := 0
+			GroupCount := 0
 			cfg.AdGroup = syn.AdGroup1
 			cfg.Localgroup = syn.AdGroup2
-			syn.AdCount, syn.GroupCount = SyncGroupInTool(cfg, toolClient)
-			excelutils.SetCell(fmt.Sprintf("%v", syn.AdCount), 5, x)
-			excelutils.SetCell(fmt.Sprintf("%v", syn.GroupCount), 6, x)
+			AdCount, GroupCount = SyncGroupInTool(cfg, toolClient)
+			excelutils.SetCell(fmt.Sprintf("%v", AdCount), 5, x)
+			excelutils.SetCell(fmt.Sprintf("%v", GroupCount), 6, x)
 			x = x + 1
 		}
 	}
@@ -129,8 +133,8 @@ func AdSyncAdGroup(propPtr string) {
 
 func toollogin(cfg Config) *client.ConfluenceClient {
 	var config = client.ConfluenceConfig{}
-	config.Username = cfg.User
-	config.Password = cfg.Pass
+	config.Username = cfg.ConfUser
+	config.Password = cfg.ConfPass
 	config.UseToken = cfg.UseToken
 	config.URL = cfg.ConfHost
 	config.Debug = false

@@ -3,12 +3,14 @@ package adutils
 import (
 	"crypto/tls"
 	"fmt"
-	"gopkg.in/ldap.v2"
+	"github.com/perolo/jira-client"
+	"github.com/perolo/ldap.v2"
 	"log"
 	"regexp"
-	"sourcery.assaabloy.net/perolo/jira-client"
 	"strings"
 )
+
+//gopkg.in/ldap.v2
 
 var l *ldap.Conn
 
@@ -88,6 +90,7 @@ func GetUnamesInGroup(group string, basedn string) (users []ADUser, err error) {
 	})
 
 	if err != nil {
+		// Intermittent error wher querrying Ad, might need to restart VPN or Strongswan
 		log.Fatal(err)
 	}
 
