@@ -214,11 +214,11 @@ func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 	}
 	if len(result.Entries) == 0 {
 		fmt.Printf("Not found in AD: %s \n", name)
-		return theUser, fmt.Errorf("Not found in AD: %s \n", name)
+		return theUser, fmt.Errorf("not found in AD: %s ", name)
 
 	} else if len(result.Entries) > 1 {
 		fmt.Printf("More than one hit for %s : %v \n", name, len(result.Entries))
-		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
+		return theUser, fmt.Errorf("more than one hit for: %s ", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
 		if strings.Contains(e.DN, "OU=User") || strings.Contains(e.DN, "OU=Administrators") {
@@ -227,7 +227,7 @@ func GetActiveUserDN(name string, basedn string) (ADUser, error) {
 			theUser.Name = e.GetAttributeValue("displayName")
 		} else {
 			fmt.Printf("Not found in AD as User: %s \n", name)
-			return theUser, fmt.Errorf("Not found in AD: %s \n", name)
+			return theUser, fmt.Errorf("not found in AD: %s ", name)
 		}
 	} else {
 		fmt.Printf("Not found in AD Que?: %s \n", name)
@@ -253,11 +253,11 @@ func GetAllUserDN(name string, basedn string) (ADUser, error) {
 	}
 	if len(result.Entries) == 0 {
 		fmt.Printf("Not found in AD: %s \n", name)
-		return theUser, fmt.Errorf("Not found in AD: %s \n", name)
+		return theUser, fmt.Errorf("not found in AD: %s ", name)
 
 	} else if len(result.Entries) > 1 {
 		fmt.Printf("More than one hit for %s : %v \n", name, len(result.Entries))
-		return theUser, fmt.Errorf("More than one hit for: %s \n", name)
+		return theUser, fmt.Errorf("more than one hit for: %s ", name)
 	} else if len(result.Entries) == 1 {
 		e := result.Entries[0]
 		if strings.Contains(e.DN, "OU=User") {
@@ -266,7 +266,7 @@ func GetAllUserDN(name string, basedn string) (ADUser, error) {
 			theUser.Name = e.GetAttributeValue("displayName")
 		} else {
 			fmt.Printf("Not found in AD as User: %s \n", name)
-			return theUser, fmt.Errorf("Not found in AD: %s \n", name)
+			return theUser, fmt.Errorf("not found in AD: %s ", name)
 		}
 	} else {
 		fmt.Printf("Not found in AD Que?: %s \n", name)
@@ -293,7 +293,7 @@ func GetActiveEmailDN(email string, basedn string) ([]ADUser, error) {
 	}
 	if len(result.Entries) == 0 {
 		fmt.Printf("Email not found in AD: %s \n", email)
-		return theUser, fmt.Errorf("Email not found in AD: %s \n", email)
+		return theUser, fmt.Errorf("email not found in AD: %s ", email)
 
 	} else if len(result.Entries) >= 1 {
 		if len(result.Entries) > 1 {
@@ -330,7 +330,7 @@ func GetAllEmailDN(email string, basedn string) ([]ADUser, error) {
 	}
 	if len(result.Entries) == 0 {
 		fmt.Printf("Email not found in AD: %s \n", email)
-		return theUser, fmt.Errorf("Email not found in AD: %s \n", email)
+		return theUser, fmt.Errorf("email not found in AD: %s ", email)
 
 	} else if len(result.Entries) >= 1 {
 		if len(result.Entries) > 1 {
