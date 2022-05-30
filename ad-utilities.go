@@ -3,11 +3,12 @@ package adutils
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/perolo/jira-client"
-	"github.com/perolo/ldap.v2"
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/perolo/jira-client"
+	"gopkg.in/ldap.v2"
 )
 
 //gopkg.in/ldap.v2
@@ -110,14 +111,14 @@ func GetUnamesInGroup(group string, basedn string) (users []ADUser, err error) {
 		//filter2 := fmt.Sprintf("(&(objectClass=user)(memberOf=%s))", dn)
 		filter2 := fmt.Sprintf("(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(memberOf:1.2.840.113556.1.4.1941:=%s))", ldap.EscapeFilter(dn))
 
-		result, err := l.Search(&ldap.SearchRequest{
+		result, err2 := l.Search(&ldap.SearchRequest{
 			BaseDN: basedn,
 			Scope:  ldap.ScopeWholeSubtree, // subtree
 			//DerefAliases: ldap.NeverDerefAliases,
 			Filter:     filter2,
 			Attributes: []string{"sAMAccountName", "mail", "displayName"},
 		})
-		if err != nil {
+		if err2 != nil {
 			return users, fmt.Errorf("LDAP search failed for user: %s", dn)
 
 		}
